@@ -1,0 +1,51 @@
+version: "3"
+services:
+  grafana:
+    image: grafana/grafana-oss
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - "GF_SERVER_DOMAIN=your.fqdn"
+      - "GF_SERVER_ROOT_URL=https://%(domain)s/"
+    volumes:
+      - /share/Docker/grafana/datasources:/etc/grafana/provisioning/datasources
+      - /share/Docker/grafana/data:/var/lib/grafana
+    networks:
+     - reverseproxy-nw
+  enphase-exporter:
+      image: savabg/prometheus-envoy
+      command: -listen 0.0.0.0
+      entrypoint: ["/prometheus-envoy"]
+      restart: always 
+      environment:
+        PORT: 2112
+        ENPHASE_TOKEN: <token>
+      networks:
+       - reverseproxy-nw
+    openweather-exporter:
+      image: billykwooten/openweather-exporter
+      container_name: openweather-exporter
+      restart: always
+      environment:
+        - OW_CITY=<City, State>
+        - OW_APIKEY=<OpenWeather API Key>
+      networks:
+       - reverseproxy-nw
+    prometheus:
+        command:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--web.enable-admin-api'
+          - '--web.enable-lifecycle'
+        image: prom/prometheus
+        container_name: prometheus
+        restart: unless-stopped
+        ports:
+          - 9090:9090
+        volumes:
+          - /share/Docker/prometheus/config:/etc/prometheus
+          - /share/Docker/prometheus/data:/prometheus
+        networks:
+         - reverseproxy-nw
+networks:
+  reverseproxy-nw:
+    external: true
